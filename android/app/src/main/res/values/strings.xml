@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">Currency Reader</string>
+
+    <string name="hint_point_camera">Point the camera at a note</string>
+    <string name="denomination_display">₹%1$s</string>
+    <string name="torch_turn_on">Turn torch on</string>
+    <string name="torch_turn_off">Turn torch off</string>
+
+    <!-- Spoken by TextToSpeech -->
+    <string name="spoken_denomination">%1$s rupees</string>
+    <string name="spoken_no_note">No note detected yet. Point the camera at a note.</string>
+
+    <!-- TalkBack -->
+    <string name="a11y_scanner_ready">Scanner ready. Point the camera at a note.</string>
+    <string name="a11y_scanner_last">Last note: %1$s rupees.</string>
+    <string name="a11y_repeat_action">repeat last note</string>
+
+    <string name="permission_rationale">Currency Reader needs the camera to recognise notes. Nothing leaves your phone.</string>
+    <string name="permission_open_settings">Open app settings</string>
+
+    <string name="error_model">The recogniser could not start. Please reinstall the app.</string>
+    <string name="error_speech">English speech is not available. Install an English voice in your phone\'s text-to-speech settings.</string>
+    <string name="error_camera">The camera could not start. Close other camera apps and try again.</string>
+</resources>
