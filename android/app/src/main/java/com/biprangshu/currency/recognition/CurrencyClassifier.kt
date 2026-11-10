@@ -1,6 +1,7 @@
 package com.biprangshu.currency.recognition
 
 import android.content.Context
+import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import java.io.FileInputStream
@@ -22,17 +23,41 @@ class CurrencyClassifier private constructor(
         .order(ByteOrder.nativeOrder())
     private val output = Array(1) { FloatArray(labels.size) }
 
+    private var preprocessNanos = 0L
+    private var inferenceNanos = 0L
+    private var timedFrames = 0
+
     fun classify(rgba: ByteBuffer, width: Int, height: Int, rowStride: Int): Prediction {
+        val start = System.nanoTime()
         writeModelInput(rgba, width, height, rowStride, input)
+        val preprocessed = System.nanoTime()
         interpreter.run(input, output)
+        recordTiming(preprocessed - start, System.nanoTime() - preprocessed)
         val scores = output[0]
         val best = scores.indices.maxBy { scores[it] }
         return Prediction(labels[best], scores[best])
     }
 
+    /** Logs average per-frame cost; filter Logcat by the tag `CurrencyClassifier`. */
+    private fun recordTiming(preprocess: Long, inference: Long) {
+        preprocessNanos += preprocess
+        inferenceNanos += inference
+        if (++timedFrames < TIMING_LOG_FRAMES) return
+        Log.d(
+            TAG,
+            "avg over $timedFrames frames: preprocess ${preprocessNanos / timedFrames / 1_000_000} ms, " +
+                "inference ${inferenceNanos / timedFrames / 1_000_000} ms",
+        )
+        preprocessNanos = 0L
+        inferenceNanos = 0L
+        timedFrames = 0
+    }
+
     override fun close() = interpreter.close()
 
     companion object {
+        private const val TAG = "CurrencyClassifier"
+        private const val TIMING_LOG_FRAMES = 30
         private const val MODEL_ASSET = "currency_model.tflite"
         private const val LABELS_ASSET = "labels.txt"
         private const val THREADS = 2

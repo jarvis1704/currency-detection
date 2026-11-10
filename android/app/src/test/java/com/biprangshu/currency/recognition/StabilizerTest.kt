@@ -22,10 +22,32 @@ class StabilizerTest {
     }
 
     @Test
-    fun `a low confidence frame restarts the count`() {
+    fun `one low confidence frame does not restart the count`() {
         feed("100", 4)
-        stabilizer.update("100", 0.5f)
+        assertNull(stabilizer.update("100", 0.5f))
+        assertEquals("100", stabilizer.update("100", 0.9f))
+    }
+
+    @Test
+    fun `low confidence frames never count towards a report`() {
+        assertEquals(List(20) { null }, feed("100", 20, confidence = 0.69f))
+    }
+
+    @Test
+    fun `frames that left the window no longer count`() {
+        feed("100", 4)
+        feed("100", 6, confidence = 0.5f)
         assertEquals(listOf(null, null, null, null, "100"), feed("100", 5))
+    }
+
+    @Test
+    fun `default settings report on the fourth of six frames`() {
+        val fast = Stabilizer()
+        val confidences = listOf(0.9f, 0.3f, 0.9f, 0.3f, 0.9f, 0.9f)
+        assertEquals(
+            listOf(null, null, null, null, null, "100"),
+            confidences.map { fast.update("100", it) },
+        )
     }
 
     @Test
