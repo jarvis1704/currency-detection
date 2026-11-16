@@ -918,12 +918,16 @@ def train():
     with open(f'{OUT}/labels.txt', 'w') as f:
         f.write('\n'.join(COARSE))
 
-    acc = h1.history['coarse_accuracy'] + h2.history['coarse_accuracy']
-    val = h1.history['val_coarse_accuracy'] + h2.history['val_coarse_accuracy']
-    plt.figure(figsize=(7, 4)); plt.plot(acc, label='train'); plt.plot(val, label='validation')
-    plt.axvline(len(h1.history['coarse_accuracy']) - 0.5, ls='--', c='gray', label='start of fine-tuning')
-    plt.xlabel('epoch'); plt.ylabel('accuracy'); plt.legend()
-    plt.savefig(f'{OUT}/curves.png', dpi=150, bbox_inches='tight'); plt.close()
+    # Per-epoch history is kept on disk: the training log does not survive a runtime reset.
+    history = {k: [float(v) for v in h1.history[k] + h2.history.get(k, [])] for k in h1.history}
+    history['phase1_epochs'] = len(h1.history['loss'])
+    json.dump(history, open(f'{OUT}/history.json', 'w'), indent=1)
+    fig, axes = plt.subplots(1, 2, figsize=(13, 4))
+    for ax, key, name in zip(axes, ('coarse_accuracy', 'loss'), ('accuracy', 'loss')):
+        ax.plot(history[key], label='train'); ax.plot(history['val_' + key], label='validation')
+        ax.axvline(history['phase1_epochs'] - 0.5, ls='--', c='gray', label='start of fine-tuning')
+        ax.set_xlabel('epoch'); ax.set_ylabel(name); ax.legend()
+    fig.savefig(f'{OUT}/curves.png', dpi=150, bbox_inches='tight'); plt.close(fig)
 
     # LiteRT export. Float32: INT8 lost 15 accuracy points on this architecture, and the float
     # graph is the one the default XNNPACK CPU delegate accepts. 3.8 MB is nothing in an APK.
