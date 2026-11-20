@@ -44,6 +44,8 @@ android {
             signingConfig = signingConfigs.findByName("release")
             optimization {
                 enable = true
+                isShrinkResources = true
+                isMinifyEnabled = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
             }
         }
