@@ -7,6 +7,8 @@ import androidx.camera.core.ImageProxy
 import androidx.lifecycle.AndroidViewModel
 import com.biprangshu.currency.R
 import com.biprangshu.currency.recognition.CurrencyClassifier
+import com.biprangshu.currency.recognition.NoteHighlighter
+import com.biprangshu.currency.recognition.NoteLocator
 import com.biprangshu.currency.recognition.Stabilizer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +28,9 @@ class ScannerViewModel(private val app: Application) : AndroidViewModel(app) {
     // Everything below is confined to this single thread, including closing the native interpreter.
     private val analysisThread: ExecutorService = Executors.newSingleThreadExecutor()
     private val stabilizer = Stabilizer()
+    private val highlighter = NoteHighlighter()
     private var classifier: CurrencyClassifier? = null
+    private var locator: NoteLocator? = null
 
     val analysisExecutor: Executor get() = analysisThread
     val analyzer = ImageAnalysis.Analyzer { image -> image.use(::analyze) }
@@ -50,8 +54,17 @@ class ScannerViewModel(private val app: Application) : AndroidViewModel(app) {
             classifier = CurrencyClassifier.load(app)
         } catch (e: IOException) {
             onLoadFailed(e)
+            return
         } catch (e: IllegalArgumentException) {
             onLoadFailed(e)
+            return
+        }
+        // Outlining the note is a visual extra: recognition and speech must work without it.
+        locator = try {
+            NoteLocator()
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Could not start the note locator; notes will not be outlined", e)
+            null
         }
     }
 
@@ -64,6 +77,10 @@ class ScannerViewModel(private val app: Application) : AndroidViewModel(app) {
         val classifier = classifier ?: return
         val plane = image.planes[0]
         val prediction = classifier.classify(plane.buffer, image.width, image.height, plane.rowStride)
+        val highlight = highlighter.update(prediction.label, prediction.confidence) {
+            locator?.locate(image)
+        }
+        if (highlight != _state.value.highlight) _state.update { it.copy(highlight = highlight) }
         val denomination = stabilizer.update(prediction.label, prediction.confidence) ?: return
         _state.update { it.copy(lastDenomination = denomination) }
         announcer.announceDetection(spokenDenomination(denomination))
@@ -81,7 +98,11 @@ class ScannerViewModel(private val app: Application) : AndroidViewModel(app) {
         // The camera turns the torch off when it closes, and a note held up after returning to
         // the app should be announced even if it was the last one spoken.
         _state.update { it.copy(isTorchOn = false) }
-        analysisThread.execute(stabilizer::reset)
+        analysisThread.execute {
+            stabilizer.reset()
+            highlighter.reset()
+            _state.update { it.copy(highlight = null) }
+        }
         announcer.stop()
     }
 
@@ -96,6 +117,8 @@ class ScannerViewModel(private val app: Application) : AndroidViewModel(app) {
         analysisThread.execute {
             classifier?.close()
             classifier = null
+            locator?.close()
+            locator = null
         }
         analysisThread.shutdown()
         announcer.shutdown()

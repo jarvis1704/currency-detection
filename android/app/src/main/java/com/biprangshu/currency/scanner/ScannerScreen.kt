@@ -15,10 +15,12 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.core.SurfaceRequest
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.lifecycle.awaitInstance
+import androidx.camera.viewfinder.compose.MutableCoordinateTransformer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +77,10 @@ private const val TAG = "ScannerScreen"
 // Larger frames only cost time: the model sees a 224×224 crop.
 private val ANALYSIS_SIZE = Size(640, 480)
 
+// Preview and analysis must share an aspect ratio, and so the same field of view, for boxes found
+// on analysis frames to line up with the preview (see NoteHighlightOverlay).
+private val SHARED_ASPECT_RATIO = AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY
+
 @Composable
 fun ScannerRoot(viewModel: ScannerViewModel = viewModel()) {
     val context = LocalContext.current
@@ -109,11 +115,18 @@ private fun ScannerCamera(viewModel: ScannerViewModel) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var surfaceRequest by remember { mutableStateOf<SurfaceRequest?>(null) }
     var camera by remember { mutableStateOf<Camera?>(null) }
-    val preview = remember { CameraPreview.Builder().build() }
+    val preview = remember {
+        CameraPreview.Builder()
+            .setResolutionSelector(
+                ResolutionSelector.Builder().setAspectRatioStrategy(SHARED_ASPECT_RATIO).build(),
+            )
+            .build()
+    }
     val analysis = remember {
         ImageAnalysis.Builder()
             .setResolutionSelector(
                 ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(SHARED_ASPECT_RATIO)
                     .setResolutionStrategy(
                         ResolutionStrategy(
                             ANALYSIS_SIZE,
@@ -182,6 +195,7 @@ fun ScannerScreen(
         ?.let { stringResource(R.string.a11y_scanner_last, it) }
         ?: stringResource(R.string.a11y_scanner_ready)
     val repeatLabel = stringResource(R.string.a11y_repeat_action)
+    val coordinateTransformer = remember { MutableCoordinateTransformer() }
 
     Column(
         modifier = modifier
@@ -200,7 +214,16 @@ fun ScannerScreen(
                 .clipToBounds(),
         ) {
             surfaceRequest?.let { request ->
-                CameraXViewfinder(surfaceRequest = request, modifier = Modifier.fillMaxSize())
+                CameraXViewfinder(
+                    surfaceRequest = request,
+                    coordinateTransformer = coordinateTransformer,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                NoteHighlightOverlay(
+                    highlight = state.highlight,
+                    surfaceResolution = request.resolution,
+                    coordinateTransformer = coordinateTransformer,
+                )
             }
         }
 

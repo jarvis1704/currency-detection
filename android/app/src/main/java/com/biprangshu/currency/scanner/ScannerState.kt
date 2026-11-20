@@ -2,9 +2,12 @@ package com.biprangshu.currency.scanner
 
 import androidx.annotation.StringRes
 import com.biprangshu.currency.R
+import com.biprangshu.currency.recognition.NoteHighlight
 
 data class ScannerState(
     val lastDenomination: String? = null,
+    /** The note currently in view, outlined in the viewfinder; null when none is. */
+    val highlight: NoteHighlight? = null,
     val hasTorch: Boolean = false,
     val isTorchOn: Boolean = false,
     val error: ScannerError? = null,
