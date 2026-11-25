@@ -92,7 +92,6 @@ currency-detection/
 │   └── gradle/libs.versions.toml            # Version catalog
 └── model_training/                          # Dataset prep, training, evaluation & export
     ├── currency_training.ipynb              # Classifier training notebook (source of truth)
-    ├── currency_training.md                 # Classifier pipeline spec, invariants & Android hand-off
     ├── train_currency.py                    # Standalone classifier prep/train/export CLI
     ├── train_detector.py                    # Multi-note YOLO11n detector pipeline (in development)
     ├── build_detector_notebook.py           # Generates detector_training.ipynb from train_detector.py
@@ -163,7 +162,7 @@ All training code lives in [`model_training/`](model_training/) and uses **publi
 
 ### 1. Deployed Classifier (`MobileNetV3-Small`)
 
-- **Notebook / Guide**: [`currency_training.ipynb`](model_training/currency_training.ipynb) & [`currency_training.md`](model_training/currency_training.md)
+- **Notebook**: [`currency_training.ipynb`](model_training/currency_training.ipynb)
 - **Model**: `MobileNetV3Small` (`include_preprocessing=True`, ImageNet weights), trained on 10 fine-grained classes (`10_new`, `10_old`, `100_new`, `100_old`, `20`, `200`, `50_new`, `50_old`, `500`, `background`) and summed into 7 coarse classes at export.
 - **Export**: Plain **float32** LiteRT `.tflite` (selected over INT8 quantization to preserve accuracy and XNNPACK compatibility).
 - **Android Hand-off Contract**:
